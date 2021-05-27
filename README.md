@@ -7,6 +7,9 @@ chia-log-analyzer.go-linux-amd64 --log=/path/to/debug.log
 ```
 ![Screenshot](./docs/screenshot-1.png)
 
+## Howto install
+Download binary from the [releases](releases) assets
+
 ## Features
 - monitoring of chia debug.log file
 - simply show basic info about farming
