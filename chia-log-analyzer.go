@@ -41,7 +41,7 @@ var totalFarmingPlotsNumber = "0"
 var totalFarmingAttempt = 0
 var positiveFarmingAttempt = 0
 
-var foundProofs = "0"
+var foundProofs = 0
 var farmingTime = "0"
 var totalPlots = "0"
 var minFarmingTime = 999999.0
@@ -250,7 +250,10 @@ func parseLines(lines []string) {
 
 			match := regexPlotsFarming.FindStringSubmatch(s)
 			farmingPlotsNumber, _ := strconv.Atoi(match[1])
-			foundProofs = match[2]
+			foundProofsActual, _ := strconv.Atoi(match[2])
+			if foundProofsActual > 0 {
+				foundProofs = foundProofs + foundProofsActual
+			}
 			farmingTime = match[3]
 			totalPlots = match[4]
 
@@ -307,7 +310,7 @@ func renderLastPlots() {
 }
 
 func renderFoundProofs() {
-	widgetFoundProofs.Text = fmt.Sprintf("%s", foundProofs)
+	widgetFoundProofs.Text = fmt.Sprintf("%d", foundProofs)
 	ui.Render(widgetFoundProofs)
 }
 

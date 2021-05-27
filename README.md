@@ -16,3 +16,6 @@ chia-log-analyzer.go-linux-amd64 --log=/path/to/debug.log
 - Linux (tested on Ubuntu)
 - RPI4 (use linux-arm builds)
 - Windows10
+
+## Keys
+- **q** - exit
