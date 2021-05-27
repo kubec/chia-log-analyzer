@@ -27,4 +27,5 @@ Download binary from the [releases](../../releases) assets
 Thank you...
 
 **Chia coins (XCH)** - xch16agqsnzhrf55x0f4f7y8k0kq9xz6rvh99nfd86cc3lnse8kgn5qs5y6ywn
+
 **Bitcoin** - 3GvUQUPPbp396jYoZsAMktgg5XWE9g6con
