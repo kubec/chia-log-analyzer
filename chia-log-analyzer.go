@@ -8,6 +8,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -20,7 +21,7 @@ import (
 	"github.com/gizak/termui/v3/widgets"
 )
 
-const MYFILE = "debug.log"
+var debuglogFile *string
 
 var widgetLastTimestamp *widgets.Paragraph
 var widgetLastPlots *widgets.Paragraph
@@ -76,6 +77,11 @@ var lastParsedLinesStack = stackStruct{count: 5}
 var lastFarmStack = stackStructFloats{count: 29}
 
 func main() {
+	debuglogFile = flag.String("log", "./debug.log", "path to debug.log")
+	flag.Parse()
+	if _, err := os.Stat(*debuglogFile); os.IsNotExist(err) {
+		fmt.Println("Please specify path to the log file, with parameter: log (--log=/path/to/debug.log)")
+	}
 
 	if err := ui.Init(); err != nil {
 		log.Fatalf("failed to initialize termui: %v", err)
@@ -142,10 +148,10 @@ func main() {
 }
 
 func loopReadFile() {
-	readFullFile(MYFILE)
+	readFullFile(*debuglogFile)
 	c := time.Tick(5 * time.Second)
 	for range c {
-		readFile(MYFILE)
+		readFile(*debuglogFile)
 	}
 }
 
