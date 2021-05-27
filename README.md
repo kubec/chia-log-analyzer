@@ -5,6 +5,8 @@ Simply realtime chia log analyzer
 ```
 chia-log-analyzer.go-linux-amd64 --log=/path/to/debug.log
 ```
+or simply copy binary file to the directory with logs and run without parameters
+
 ![Screenshot](./docs/screenshot-1.png)
 
 ## Howto install
