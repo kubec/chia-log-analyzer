@@ -1,3 +1,6 @@
+[![rcard](https://goreportcard.com/badge/github.com/kubec/chia-log-analyzer)](https://goreportcard.com/report/github.com/kubec/chia-log-analyzer)
+[![License](https://img.shields.io/badge/license-mit-blue.svg?style=flat-square)](https://raw.githubusercontent.com/kubec/chia-log-analyzer/master/LICENSE)
+
 # Chia log analyzer
 Simply realtime chia log analyzer
 

@@ -32,7 +32,9 @@ var widgetLog *widgets.Paragraph
 var widgetMinFarmingTime *widgets.Paragraph
 var widgetMaxFarmingTime *widgets.Paragraph
 var widgetBarChart *widgets.BarChart
+var widgetBarChartParagraph *widgets.Paragraph
 var widgetBarChart2 *widgets.Plot
+var widgetBarChart2Paragraph *widgets.Paragraph
 var lastRow string = ""
 var lastParsedLines []string
 
@@ -139,6 +141,11 @@ func main() {
 	widgetBarChart.LabelStyles = []ui.Style{ui.NewStyle(ui.ColorBlue)}
 	widgetBarChart.NumStyles = []ui.Style{ui.NewStyle(ui.ColorWhite)}
 
+	//widget for "not enough data"
+	widgetBarChartParagraph = widgets.NewParagraph()
+	widgetBarChartParagraph.SetRect(0, 10, 119, 25) //same as above
+	widgetBarChartParagraph.Title = "Not engough data or zero values"
+
 	widgetBarChart2 = widgets.NewPlot()
 	widgetBarChart2.Title = "Farming times (axis Y in seconds) - last 110 values"
 	widgetBarChart2.Data = make([][]float64, 1)
@@ -146,6 +153,11 @@ func main() {
 	widgetBarChart2.AxesColor = ui.ColorWhite
 	widgetBarChart2.LineColors[0] = ui.ColorRed
 	widgetBarChart2.Marker = widgets.MarkerBraille
+
+	//widget for "not enough data"
+	widgetBarChart2Paragraph = widgets.NewParagraph()
+	widgetBarChart2Paragraph.SetRect(0, 25, 119, 40) //same as above
+	widgetBarChart2Paragraph.Title = "Not engough data or zero values"
 
 	go loopReadFile()
 
@@ -384,11 +396,25 @@ func renderMaxFarmingTime() {
 }
 
 func renderLastFarmBarChart() {
-	widgetBarChart.Data = lastFarmStack.values
-	ui.Render(widgetBarChart)
+	for _, x := range lastFarmStack.values {
+		if x > 0 { //at least one positive value
+			widgetBarChart.Data = lastFarmStack.values
+			ui.Render(widgetBarChart)
+			return
+		}
+	}
+
+	ui.Render(widgetBarChartParagraph)
 }
 
 func renderLastFarmBarChart2() {
-	widgetBarChart2.Data[0] = lastFarmingTimesStack.values
-	ui.Render(widgetBarChart2)
+	for _, x := range lastFarmingTimesStack.values {
+		if x > 0 { //at least one positive value
+			widgetBarChart2.Data[0] = lastFarmingTimesStack.values
+			ui.Render(widgetBarChart2)
+			return
+		}
+	}
+
+	ui.Render(widgetBarChart2Paragraph)
 }
