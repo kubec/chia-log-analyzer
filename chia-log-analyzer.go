@@ -32,6 +32,7 @@ var widgetLog *widgets.Paragraph
 var widgetMinFarmingTime *widgets.Paragraph
 var widgetMaxFarmingTime *widgets.Paragraph
 var widgetBarChart *widgets.BarChart
+var widgetBarChart2 *widgets.Plot
 var lastRow string = ""
 var lastParsedLines []string
 
@@ -46,6 +47,8 @@ var farmingTime = "0"
 var totalPlots = "0"
 var minFarmingTime = 999999.0
 var maxFarmingTime = 0.0
+
+var lastLogFileSize = int64(0)
 
 type stackStruct struct {
 	lines []string
@@ -75,12 +78,14 @@ func (stack *stackStructFloats) push(value float64) {
 
 var lastParsedLinesStack = stackStruct{count: 5}
 var lastFarmStack = stackStructFloats{count: 29}
+var lastFarmingTimesStack = stackStructFloats{count: 110}
 
 func main() {
 	debuglogFile = flag.String("log", "./debug.log", "path to debug.log")
 	flag.Parse()
 	if _, err := os.Stat(*debuglogFile); os.IsNotExist(err) {
 		fmt.Println("Please specify path to the log file, with parameter: log (--log=/path/to/debug.log)")
+		return
 	}
 
 	if err := ui.Init(); err != nil {
@@ -128,11 +133,19 @@ func main() {
 
 	widgetBarChart = widgets.NewBarChart()
 	widgetBarChart.Data = []float64{3, 2, 5, 3, 9, 3}
-	widgetBarChart.Title = "Plots eligible for farming"
+	widgetBarChart.Title = "Plots eligible for farming - last 29 values"
 	widgetBarChart.SetRect(0, 10, 119, 25)
 	widgetBarChart.BarColors = []ui.Color{ui.ColorGreen}
 	widgetBarChart.LabelStyles = []ui.Style{ui.NewStyle(ui.ColorBlue)}
 	widgetBarChart.NumStyles = []ui.Style{ui.NewStyle(ui.ColorWhite)}
+
+	widgetBarChart2 = widgets.NewPlot()
+	widgetBarChart2.Title = "Farming times (axis Y in seconds) - last 110 values"
+	widgetBarChart2.Data = make([][]float64, 1)
+	widgetBarChart2.SetRect(0, 25, 119, 40)
+	widgetBarChart2.AxesColor = ui.ColorWhite
+	widgetBarChart2.LineColors[0] = ui.ColorRed
+	widgetBarChart2.Marker = widgets.MarkerBraille
 
 	go loopReadFile()
 
@@ -148,14 +161,42 @@ func main() {
 }
 
 func loopReadFile() {
+	renderLog(fmt.Sprintf("Reading log %s, please wait", *debuglogFile))
 	readFullFile(*debuglogFile)
 	c := time.Tick(5 * time.Second)
+	var actualLogFileSize int64
 	for range c {
-		readFile(*debuglogFile)
+		actualLogFileSize, _ = getFileSize(*debuglogFile)
+		if actualLogFileSize < lastLogFileSize { // new file ?
+			readFullFile(*debuglogFile)
+		} else {
+			readFile(*debuglogFile)
+		}
+
+		setLastLogFileSize(*debuglogFile)
 	}
 }
 
+func setLastLogFileSize(filepath string) {
+	lastLogFileSize, _ = getFileSize(filepath)
+}
+
+func getFileSize(filepath string) (int64, error) {
+	fi, err := os.Stat(filepath)
+	if err != nil {
+		return 0, err
+	}
+	// get the size
+	return fi.Size(), nil
+}
+
 func readFullFile(fname string) {
+	if _, err := os.Stat(fname); os.IsNotExist(err) {
+		return
+	}
+
+	//setLastLogFileSize(fname)
+
 	// os.Open() opens specific file in
 	// read-only mode and this return
 	// a pointer of type os.
@@ -193,6 +234,12 @@ func readFullFile(fname string) {
 }
 
 func readFile(fname string) {
+	if _, err := os.Stat(fname); os.IsNotExist(err) {
+		return
+	}
+
+	//setLastLogFileSize(fname)
+
 	file, err := os.Open(fname)
 	if err != nil {
 		panic(err)
@@ -216,6 +263,7 @@ func readFile(fname string) {
 		parseLines(lines)
 	}
 
+	file.Close()
 }
 
 func parseLines(lines []string) {
@@ -270,13 +318,14 @@ func parseLines(lines []string) {
 			if parsedTime > float64(maxFarmingTime) {
 				maxFarmingTime = parsedTime
 			}
+			lastFarmingTimesStack.push(parsedTime)
 
-			renderLog(farmingTime)
 			renderWidgets()
 		}
 	}
 	renderWidgets()
 	renderLastFarmBarChart()
+	renderLastFarmBarChart2()
 
 	var tmpTxt strings.Builder
 	for i := range lastParsedLinesStack.lines {
@@ -337,4 +386,9 @@ func renderMaxFarmingTime() {
 func renderLastFarmBarChart() {
 	widgetBarChart.Data = lastFarmStack.values
 	ui.Render(widgetBarChart)
+}
+
+func renderLastFarmBarChart2() {
+	widgetBarChart2.Data[0] = lastFarmingTimesStack.values
+	ui.Render(widgetBarChart2)
 }
