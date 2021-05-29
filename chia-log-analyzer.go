@@ -326,10 +326,8 @@ func parseLines(lines []string) {
 			} else {
 				if lastRow == s {
 					startParsingLines = true
-					continue
-				} else {
-					continue
 				}
+				continue
 			}
 		}
 
