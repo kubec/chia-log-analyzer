@@ -310,7 +310,7 @@ func readFile(fname string) {
 
 func parseLines(lines []string) {
 	//0 plots were eligible for farming 27274481c3... Found 0 proofs. Time: 0.14447 s. Total 105 plots
-	regexPlotsFarming, _ := regexp.Compile("([0-9])\\s+plots\\s+were\\seligible.*Found\\s([0-9])+\\sproofs.*Time:\\s([0-9]+\\.[0-9]+)\\ss\\.\\sTotal\\s([0-9]+)\\splots")
+	regexPlotsFarming, _ := regexp.Compile("([0-9]+)\\s+plots\\s+were\\seligible.*Found\\s([0-9])+\\sproofs.*Time:\\s([0-9]+\\.[0-9]+)\\ss\\.\\sTotal\\s([0-9]+)\\splots")
 
 	startParsingLines := false
 	for i, s := range lines {
