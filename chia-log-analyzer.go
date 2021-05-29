@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/user"
 	"regexp"
 	"strconv"
 	"strings"
@@ -83,12 +84,7 @@ var lastFarmStack = stackStructFloats{count: 29}
 var lastFarmingTimesStack = stackStructFloats{count: 110}
 
 func main() {
-	debuglogFile = flag.String("log", "./debug.log", "path to debug.log")
-	flag.Parse()
-	if _, err := os.Stat(*debuglogFile); os.IsNotExist(err) {
-		fmt.Println("Please specify path to the log file, with parameter: log (--log=/path/to/debug.log)")
-		return
-	}
+	detectLogFileLocation()
 
 	if err := ui.Init(); err != nil {
 		log.Fatalf("failed to initialize termui: %v", err)
@@ -172,6 +168,37 @@ func main() {
 
 }
 
+func detectLogFileLocation() {
+	debuglogFile = flag.String("log", "./debug.log", "path to debug.log")
+	flag.Parse()
+	missingLogFile := false
+
+	//1 - try open debug.log in actual directory or get file from paremeter "log"
+	fmt.Printf("trying: %s\n", *debuglogFile)
+	if _, err := os.Stat(*debuglogFile); os.IsNotExist(err) {
+		missingLogFile = true
+	} else {
+		return
+	}
+
+	//2 - try open debug log from default home location
+	usr, _ := user.Current()
+	dir := usr.HomeDir
+	defaultLogLocation := fmt.Sprintf("%s/.chia/mainnet/log/debug.log", dir)
+	debuglogFile = &defaultLogLocation
+	fmt.Printf("trying: %s\n", *debuglogFile)
+	if _, err := os.Stat(*debuglogFile); os.IsNotExist(err) {
+		missingLogFile = true
+	} else {
+		return
+	}
+
+	if missingLogFile == true {
+		fmt.Println("Please specify path to the log file, with parameter: log (--log=/path/to/debug.log)")
+		os.Exit(0)
+	}
+}
+
 func loopReadFile() {
 	renderLog(fmt.Sprintf("Reading log %s, please wait", *debuglogFile))
 	readFullFile(*debuglogFile)
@@ -179,6 +206,9 @@ func loopReadFile() {
 	var actualLogFileSize int64
 	for range c {
 		actualLogFileSize, _ = getFileSize(*debuglogFile)
+		if actualLogFileSize == 0 {
+			continue
+		}
 		if actualLogFileSize < lastLogFileSize { // new file ?
 			readFullFile(*debuglogFile)
 		} else {
