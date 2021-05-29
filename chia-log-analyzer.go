@@ -320,7 +320,7 @@ func parseLines(lines []string) {
 		if s == "" {
 			continue
 		}
-		if startParsingLines == false {
+		if !startParsingLines {
 			if lastRow == "" { //first run ?
 				startParsingLines = true
 			} else {
@@ -335,7 +335,7 @@ func parseLines(lines []string) {
 
 		lastRow = s
 
-		if regexPlotsFarming.MatchString(s) == true {
+		if regexPlotsFarming.MatchString(s) {
 			lastParsedLinesStack.push(s)
 
 			match := regexPlotsFarming.FindStringSubmatch(s)
