@@ -27,9 +27,9 @@ Download binary from the [releases](../../releases) assets
 - automatic refresh every 5s
 
 ## Supported platforms
-- Linux (tested on Ubuntu) - download binary: **[chia-log-analyzer.go-linux-amd64](../../releases/latest/chia-log-analyzer.go-linux-amd64)**
-- RPI4 (use linux-arm builds) - download binary:  **[chia-log-analyzer.go-linux-arm](../../releases/chia-log-analyzer.go-linux-arm)**
-- Windows10 - download binary:  **[chia-log-analyzer.go-windows-amd64.exe](../../releases/latest/chia-log-analyzer.go-windows-amd64.exe)**
+- Linux (tested on Ubuntu) - download binary: **chia-log-analyzer.go-linux-amd64]**
+- RPI4 (use linux-arm builds) - download binary:  **chia-log-analyzer.go-linux-arm]**
+- Windows10 - download binary:  **chia-log-analyzer.go-windows-amd64.exe**
 
 ## Keys
 - **q** - exit
