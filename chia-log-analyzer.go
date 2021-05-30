@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/user"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -30,12 +31,13 @@ var widgetFoundProofs *widgets.Paragraph
 var widgetLastFarmingTime *widgets.Paragraph
 var widgetTotalFarmingPlotsNumber *widgets.Paragraph
 var widgetLog *widgets.Paragraph
-var widgetMinFarmingTime *widgets.Paragraph
-var widgetMaxFarmingTime *widgets.Paragraph
 var widgetBarChart *widgets.BarChart
 var widgetBarChartParagraph *widgets.Paragraph
 var widgetBarChart2 *widgets.Plot
 var widgetBarChart2Paragraph *widgets.Paragraph
+var widgetSparklines *widgets.Sparkline
+var widgetSparklinesGroup *widgets.SparklineGroup
+var widgetOverallHealthPercent *widgets.Paragraph
 var lastRow string = ""
 var lastParsedLines []string
 
@@ -50,8 +52,10 @@ var farmingTime = "0"
 var totalPlots = "0"
 var minFarmingTime = 999999.0
 var maxFarmingTime = 0.0
+var allFarmingTimes []float64
 
 var lastLogFileSize = int64(0)
+var healthData = make(map[string]float64)
 
 type stackStruct struct {
 	lines []string
@@ -81,7 +85,7 @@ func (stack *stackStructFloats) push(value float64) {
 
 var lastParsedLinesStack = stackStruct{count: 5}
 var lastFarmStack = stackStructFloats{count: 29}
-var lastFarmingTimesStack = stackStructFloats{count: 110}
+var lastFarmingTimesStack = stackStructFloats{count: 113}
 
 func main() {
 	detectLogFileLocation()
@@ -91,69 +95,74 @@ func main() {
 	}
 	defer ui.Close()
 
-	var smallWidgetWidth = 20
 	var smallWidgetHeight = 3
 
 	widgetLastPlots = widgets.NewParagraph()
-	widgetLastPlots.SetRect(smallWidgetWidth*0, 0, smallWidgetWidth-1, smallWidgetHeight)
-	widgetLastPlots.Title = "Last plots count"
+	widgetLastPlots.SetRect(0, 0, 9, smallWidgetHeight)
+	widgetLastPlots.Title = "Plots"
 	ui.Render(widgetLastPlots)
 
 	widgetFoundProofs = widgets.NewParagraph()
-	widgetFoundProofs.SetRect(smallWidgetWidth*1, 0, (smallWidgetWidth*2)-1, smallWidgetHeight)
-	widgetFoundProofs.Title = "Found proofs"
+	widgetFoundProofs.SetRect(9, 0, 18, smallWidgetHeight)
+	widgetFoundProofs.Title = "Proofs"
 	ui.Render(widgetFoundProofs)
 
-	widgetLastFarmingTime = widgets.NewParagraph()
-	widgetLastFarmingTime.SetRect(smallWidgetWidth*2, 0, (smallWidgetWidth*3)-1, smallWidgetHeight)
-	widgetLastFarmingTime.Title = "Last farming time"
-	ui.Render(widgetLastFarmingTime)
-
 	widgetTotalFarmingPlotsNumber = widgets.NewParagraph()
-	widgetTotalFarmingPlotsNumber.SetRect(smallWidgetWidth*3, 0, (smallWidgetWidth*4)-1, smallWidgetHeight)
+	widgetTotalFarmingPlotsNumber.SetRect(18, 0, 37, smallWidgetHeight)
 	widgetTotalFarmingPlotsNumber.Title = "Farming attempts"
 	ui.Render(widgetTotalFarmingPlotsNumber)
 
-	widgetMinFarmingTime = widgets.NewParagraph()
-	widgetMinFarmingTime.SetRect(smallWidgetWidth*4, 0, (smallWidgetWidth*5)-1, smallWidgetHeight)
-	widgetMinFarmingTime.Title = "Min farming time"
-	ui.Render(widgetMinFarmingTime)
+	widgetLastFarmingTime = widgets.NewParagraph()
+	widgetLastFarmingTime.SetRect(37, 0, 77, smallWidgetHeight)
+	widgetLastFarmingTime.Title = "Farming times (last/min/avg/max)"
+	ui.Render(widgetLastFarmingTime)
 
-	widgetMaxFarmingTime = widgets.NewParagraph()
-	widgetMaxFarmingTime.SetRect(smallWidgetWidth*5, 0, (smallWidgetWidth*6)-1, smallWidgetHeight)
-	widgetMaxFarmingTime.Title = "Max farming time"
-	ui.Render(widgetMaxFarmingTime)
+	widgetOverallHealthPercent = widgets.NewParagraph()
+	widgetOverallHealthPercent.Title = "Overall farming health indicator"
+	widgetOverallHealthPercent.SetRect(77, 0, 119, smallWidgetHeight)
+	widgetOverallHealthPercent.TextStyle.Fg = ui.ColorCyan
+	widgetOverallHealthPercent.Text = "?? %"
 
 	widgetLog = widgets.NewParagraph()
-	widgetLog.SetRect(0, 10, 179, smallWidgetHeight)
+	widgetLog.SetRect(0, 15, 119, smallWidgetHeight)
 	widgetLog.Title = "Last farming"
 	ui.Render(widgetLog)
 
 	widgetBarChart = widgets.NewBarChart()
-	widgetBarChart.Data = []float64{3, 2, 5, 3, 9, 3}
-	widgetBarChart.Title = "Plots eligible for farming - last 29 values"
-	widgetBarChart.SetRect(0, 10, 119, 25)
+	widgetBarChart.Title = "Plots eligible for farming - last 59 values"
+	widgetBarChart.SetRect(0, 15, 119, 25)
+	widgetBarChart.BarWidth = 3
+	widgetBarChart.BarGap = 1
 	widgetBarChart.BarColors = []ui.Color{ui.ColorGreen}
 	widgetBarChart.LabelStyles = []ui.Style{ui.NewStyle(ui.ColorBlue)}
 	widgetBarChart.NumStyles = []ui.Style{ui.NewStyle(ui.ColorWhite)}
 
 	//widget for "not enough data"
 	widgetBarChartParagraph = widgets.NewParagraph()
-	widgetBarChartParagraph.SetRect(0, 10, 119, 25) //same as above
+	widgetBarChartParagraph.SetRect(0, 15, 119, 25) //same as above
 	widgetBarChartParagraph.Title = "Not engough data or zero values"
 
 	widgetBarChart2 = widgets.NewPlot()
-	widgetBarChart2.Title = "Farming times (axis Y in seconds) - last 110 values"
+	widgetBarChart2.Title = "Farming times (axis Y in seconds) - last 113 values"
 	widgetBarChart2.Data = make([][]float64, 1)
-	widgetBarChart2.SetRect(0, 25, 119, 40)
+	widgetBarChart2.SetRect(0, 25, 119, 35)
 	widgetBarChart2.AxesColor = ui.ColorWhite
 	widgetBarChart2.LineColors[0] = ui.ColorRed
 	widgetBarChart2.Marker = widgets.MarkerBraille
 
 	//widget for "not enough data"
 	widgetBarChart2Paragraph = widgets.NewParagraph()
-	widgetBarChart2Paragraph.SetRect(0, 25, 119, 40) //same as above
+	widgetBarChart2Paragraph.SetRect(0, 25, 119, 35) //same as above
 	widgetBarChart2Paragraph.Title = "Not engough data or zero values"
+
+	widgetSparklines = widgets.NewSparkline()
+	widgetSparklines.Title = "1 col = 10 minutes block. It could be about 64 reqs/ 10minutes. Chart could be almost flat (+/-1 height block)"
+	widgetSparklines.LineColor = ui.ColorBlue
+	widgetSparklines.TitleStyle.Fg = ui.ColorWhite
+
+	widgetSparklinesGroup = widgets.NewSparklineGroup(widgetSparklines)
+	widgetSparklinesGroup.Title = "Health indicator - number of incoming farming requests from the Chia network"
+	widgetSparklinesGroup.SetRect(0, 35, 119, 45)
 
 	go loopReadFile()
 
@@ -173,7 +182,7 @@ func detectLogFileLocation() {
 	flag.Parse()
 	missingLogFile := false
 
-	//1 - try open debug.log in actual directory or get file from paremeter "log"
+	//1 - try open debug.log in the actual directory or get file from the paremeter "log"
 	fmt.Printf("trying: %s\n", *debuglogFile)
 	if _, err := os.Stat(*debuglogFile); os.IsNotExist(err) {
 		missingLogFile = true
@@ -181,7 +190,7 @@ func detectLogFileLocation() {
 		return
 	}
 
-	//2 - try open debug log from default home location
+	//2 - try open debug log from the default home location
 	usr, _ := user.Current()
 	dir := usr.HomeDir
 	defaultLogLocation := fmt.Sprintf("%s/.chia/mainnet/log/debug.log", dir)
@@ -202,11 +211,13 @@ func detectLogFileLocation() {
 func loopReadFile() {
 	renderLog(fmt.Sprintf("Reading log %s, please wait", *debuglogFile))
 	readFullFile(*debuglogFile)
+	setLastLogFileSize(*debuglogFile)
+
 	c := time.Tick(5 * time.Second)
 	var actualLogFileSize int64
 	for range c {
 		actualLogFileSize, _ = getFileSize(*debuglogFile)
-		if actualLogFileSize == 0 {
+		if actualLogFileSize == 0 || actualLogFileSize == lastLogFileSize {
 			continue
 		}
 		if actualLogFileSize < lastLogFileSize { // new file ?
@@ -236,8 +247,6 @@ func readFullFile(fname string) {
 	if _, err := os.Stat(fname); os.IsNotExist(err) {
 		return
 	}
-
-	//setLastLogFileSize(fname)
 
 	// os.Open() opens specific file in
 	// read-only mode and this return
@@ -279,8 +288,6 @@ func readFile(fname string) {
 	if _, err := os.Stat(fname); os.IsNotExist(err) {
 		return
 	}
-
-	//setLastLogFileSize(fname)
 
 	file, err := os.Open(fname)
 	if err != nil {
@@ -336,6 +343,16 @@ func parseLines(lines []string) {
 		if regexPlotsFarming.MatchString(s) {
 			lastParsedLinesStack.push(s)
 
+			//extract number of requests in 10minutes blocks
+			runes := []rune(s)
+			dateTime := string(runes[0:15]) //1 or 10-minutes (15=10min, 16=1min)
+			_, exists := healthData[dateTime]
+			if !exists {
+				healthData[dateTime] = 0
+			}
+			healthData[dateTime] = healthData[dateTime] + 1
+
+			//plots + proofs
 			match := regexPlotsFarming.FindStringSubmatch(s)
 			farmingPlotsNumber, _ := strconv.Atoi(match[1])
 			foundProofsActual, _ := strconv.Atoi(match[2])
@@ -351,7 +368,10 @@ func parseLines(lines []string) {
 			totalFarmingAttempt++
 			lastFarmStack.push(float64(farmingPlotsNumber)) //data for barchart
 
-			parsedTime, _ := strconv.ParseFloat(farmingTime, 8)
+			parsedTime, _ := strconv.ParseFloat(farmingTime, 8) //last time
+
+			allFarmingTimes = append(allFarmingTimes, parsedTime) //for AVG computing
+
 			if parsedTime < float64(minFarmingTime) {
 				minFarmingTime = parsedTime
 			}
@@ -359,29 +379,33 @@ func parseLines(lines []string) {
 				maxFarmingTime = parsedTime
 			}
 			lastFarmingTimesStack.push(parsedTime)
-
-			renderWidgets()
 		}
 	}
+
 	renderWidgets()
 	renderLastFarmBarChart()
 	renderLastFarmBarChart2()
+	renderSparkLines()
 
 	var tmpTxt strings.Builder
 	for i := range lastParsedLinesStack.lines {
-		tmpTxt.WriteString(lastParsedLinesStack.lines[i])
+		//tmpTxt.WriteString(lastParsedLinesStack.lines[i])
+		twoCols := strings.Split(lastParsedLinesStack.lines[i], "    ")
+		tmpTxt.WriteString(twoCols[0])
+		tmpTxt.WriteString("\n")
+		tmpTxt.WriteString("-->")
+		tmpTxt.WriteString(twoCols[1])
 		tmpTxt.WriteString("\n")
 	}
 	renderLog(tmpTxt.String())
 }
 
 func renderWidgets() {
+	renderOverallHealth()
 	renderTotalFarmingPlotsNumber()
 	renderLastPlots()
 	renderFoundProofs()
 	renderLastFarmingTime()
-	renderMinFarmingTime()
-	renderMaxFarmingTime()
 }
 
 func renderTotalFarmingPlotsNumber() {
@@ -389,7 +413,7 @@ func renderTotalFarmingPlotsNumber() {
 	if totalFarmingAttempt > 0 {
 		percent = float64(float64(positiveFarmingAttempt)/float64(totalFarmingAttempt)) * 100
 	}
-	widgetTotalFarmingPlotsNumber.Text = fmt.Sprintf("%d/%d(%.2f%%)", positiveFarmingAttempt, totalFarmingAttempt, percent)
+	widgetTotalFarmingPlotsNumber.Text = fmt.Sprintf("%d/%d(%.1f%%)", positiveFarmingAttempt, totalFarmingAttempt, percent)
 	ui.Render(widgetTotalFarmingPlotsNumber)
 }
 
@@ -404,7 +428,13 @@ func renderFoundProofs() {
 }
 
 func renderLastFarmingTime() {
-	widgetLastFarmingTime.Text = fmt.Sprintf("%ss", farmingTime)
+	total := 0.0
+	for _, number := range allFarmingTimes {
+		total = total + number
+	}
+	average := total / float64(len(allFarmingTimes))
+
+	widgetLastFarmingTime.Text = fmt.Sprintf("%ss / %.3fs / %.3fs / %.3fs", farmingTime, minFarmingTime, average, maxFarmingTime)
 	ui.Render(widgetLastFarmingTime)
 }
 
@@ -413,14 +443,30 @@ func renderLog(text string) {
 	ui.Render(widgetLog)
 }
 
-func renderMinFarmingTime() {
-	widgetMinFarmingTime.Text = fmt.Sprintf("%fs", minFarmingTime)
-	ui.Render(widgetMinFarmingTime)
-}
+func renderOverallHealth() {
+	values := sortMap(healthData)
+	values = values[1 : len(values)-1] //remove the first and the last (may be incomplete)
+	sum := sumFloats(values)
+	avg := sum / float64(len(values))
 
-func renderMaxFarmingTime() {
-	widgetMaxFarmingTime.Text = fmt.Sprintf("%fs", maxFarmingTime)
-	ui.Render(widgetMaxFarmingTime)
+	//in chia network we can see 6.4 req/minute (64 req/10minutes) for farming
+	percent := avg / 64 * 100
+
+	/*
+		if percent > 100 { //result may be > 100%, but it is due some meassure inaccuracy
+			percent = 100 //overwrite down to 100% is OK
+		}*/
+
+	//percent := avg
+	widgetOverallHealthPercent.TextStyle.Fg = ui.ColorRed
+	if percent > 80 {
+		widgetOverallHealthPercent.TextStyle.Fg = ui.ColorCyan
+	}
+	if percent > 95 {
+		widgetOverallHealthPercent.TextStyle.Fg = ui.ColorGreen
+	}
+	widgetOverallHealthPercent.Text = fmt.Sprintf("%.2f%%  - normal value is about 100%%", percent)
+	ui.Render(widgetOverallHealthPercent)
 }
 
 func renderLastFarmBarChart() {
@@ -445,4 +491,52 @@ func renderLastFarmBarChart2() {
 	}
 
 	ui.Render(widgetBarChart2Paragraph)
+}
+
+func renderSparkLines() {
+
+	if len(healthData) == 0 {
+		return
+	}
+
+	v := sortMap(healthData)
+
+	sliceNumberOfValues := 117
+	if len(v) < sliceNumberOfValues {
+		sliceNumberOfValues = len(v)
+		v = v[len(v)-sliceNumberOfValues:]
+	}
+
+	widgetSparklines.Data = v
+	ui.Render(widgetSparklinesGroup)
+}
+
+func sortMap(m map[string]float64) []float64 {
+	if len(m) == 0 {
+		return make([]float64, 0)
+	}
+
+	v := make([]float64, 0, len(m))
+
+	//sort map by keys
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		v = append(v, m[k])
+	}
+
+	return v
+}
+
+func sumFloats(input []float64) float64 {
+	sum := 0.0
+
+	for i := range input {
+		sum += input[i]
+	}
+
+	return sum
 }
