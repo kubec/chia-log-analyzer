@@ -444,6 +444,9 @@ func renderLog(text string) {
 }
 
 func renderOverallHealth() {
+	if len(healthData) < 3 {
+		return
+	}
 	values := sortMap(healthData)
 	values = values[1 : len(values)-1] //remove the first and the last (may be incomplete)
 	sum := sumFloats(values)
