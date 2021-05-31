@@ -34,6 +34,9 @@ Download binary from the [releases](../../releases) assets
 ## Keys
 - **q** - exit
 
+## Author
+You can contact me on reddit https://www.reddit.com/message/compose/?to=elvismk or open new issue on github.
+
 ## Donations
 Thank you...
 
