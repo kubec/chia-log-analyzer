@@ -10,7 +10,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"log"
+	"io/ioutil"
 	"os"
 	"os/user"
 	"regexp"
@@ -21,6 +21,7 @@ import (
 
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
+	log "github.com/sirupsen/logrus"
 )
 
 var debuglogFile *string
@@ -88,6 +89,8 @@ var lastFarmStack = stackStructFloats{count: 29}
 var lastFarmingTimesStack = stackStructFloats{count: 113}
 
 func main() {
+
+	initLogging()
 	detectLogFileLocation()
 
 	if err := ui.Init(); err != nil {
@@ -177,13 +180,35 @@ func main() {
 
 }
 
+func initLogging() {
+	writeLog := flag.Bool("writelog", false, "write log?")
+	flag.Parse()
+	if *writeLog {
+		// If the file doesn't exist, create it or append to the file
+		file, err := os.OpenFile("chia-log-analyzer.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.SetOutput(file)
+	} else {
+		log.SetOutput(ioutil.Discard)
+	}
+
+	log.SetLevel(log.InfoLevel)
+	log.SetFormatter(&log.TextFormatter{
+		DisableColors: true,
+		FullTimestamp: true,
+	})
+	log.Info("Application start")
+}
+
 func detectLogFileLocation() {
 	debuglogFile = flag.String("log", "./debug.log", "path to debug.log")
 	flag.Parse()
 	missingLogFile := false
 
 	//1 - try open debug.log in the actual directory or get file from the paremeter "log"
-	fmt.Printf("trying: %s\n", *debuglogFile)
+	log.Info(fmt.Sprintf("Trying to open: %s", *debuglogFile))
 	if _, err := os.Stat(*debuglogFile); os.IsNotExist(err) {
 		missingLogFile = true
 	} else {
@@ -195,7 +220,7 @@ func detectLogFileLocation() {
 	dir := usr.HomeDir
 	defaultLogLocation := fmt.Sprintf("%s/.chia/mainnet/log/debug.log", dir)
 	debuglogFile = &defaultLogLocation
-	fmt.Printf("trying: %s\n", *debuglogFile)
+	log.Info(fmt.Sprintf("Trying to open: %s", *debuglogFile))
 	if _, err := os.Stat(*debuglogFile); os.IsNotExist(err) {
 		missingLogFile = true
 	} else {
@@ -217,10 +242,13 @@ func loopReadFile() {
 	var actualLogFileSize int64
 	for range c {
 		actualLogFileSize, _ = getFileSize(*debuglogFile)
+		log.Info(fmt.Sprintf("Actual log file size: %d bytes", actualLogFileSize))
 		if actualLogFileSize == 0 || actualLogFileSize == lastLogFileSize {
+			log.Info("No file change, skipping parsing")
 			continue
 		}
 		if actualLogFileSize < lastLogFileSize { // new file ?
+			log.Info("New file detected")
 			readFullFile(*debuglogFile)
 		} else {
 			readFile(*debuglogFile)
@@ -232,6 +260,7 @@ func loopReadFile() {
 
 func setLastLogFileSize(filepath string) {
 	lastLogFileSize, _ = getFileSize(filepath)
+	log.Info(fmt.Sprintf("Last file size: %d bytes", lastLogFileSize))
 }
 
 func getFileSize(filepath string) (int64, error) {
@@ -248,14 +277,17 @@ func readFullFile(fname string) {
 		return
 	}
 
+	log.Info("Reading full file")
+	lastRow = ""
+
 	// os.Open() opens specific file in
 	// read-only mode and this return
 	// a pointer of type os.
 	file, err := os.Open(fname)
 
 	if err != nil {
-		log.Fatalf("failed to open")
-
+		log.Error(fmt.Sprintf("Failed to open log file: %s, skipping reading", fname))
+		return
 	}
 	defer file.Close()
 
@@ -286,12 +318,14 @@ func readFullFile(fname string) {
 
 func readFile(fname string) {
 	if _, err := os.Stat(fname); os.IsNotExist(err) {
+		log.Error(fmt.Sprintf("Failed to open log file: %s, skipping reading", fname))
 		return
 	}
 
 	file, err := os.Open(fname)
 	if err != nil {
-		panic(err)
+		log.Error(fmt.Sprintf("Failed to open log file: %s, skipping reading", err))
+		return
 	}
 	defer file.Close()
 
@@ -306,6 +340,8 @@ func readFile(fname string) {
 		start = stat.Size() - int64(bytesToRead)
 	}
 
+	log.Info(fmt.Sprintf("Reading file. %d bytes from the position: %d", bytesToRead, start))
+
 	_, err = file.ReadAt(buf, start)
 	if err == nil {
 		lines := strings.Split(string(buf), "\n")
@@ -316,6 +352,8 @@ func readFile(fname string) {
 }
 
 func parseLines(lines []string) {
+	log.Info(fmt.Sprintf("Number of rows for parsing: %d", len(lines)))
+
 	//0 plots were eligible for farming 27274481c3... Found 0 proofs. Time: 0.14447 s. Total 105 plots
 	regexPlotsFarming, _ := regexp.Compile("([0-9]+)\\s+plots\\s+were\\seligible.*Found\\s([0-9])+\\sproofs.*Time:\\s([0-9]+\\.[0-9]+)\\ss\\.\\sTotal\\s([0-9]+)\\splots")
 
@@ -382,6 +420,8 @@ func parseLines(lines []string) {
 		}
 	}
 
+	log.Info("Log parsing done")
+
 	renderWidgets()
 	renderLastFarmBarChart()
 	renderLastFarmBarChart2()
@@ -389,7 +429,6 @@ func parseLines(lines []string) {
 
 	var tmpTxt strings.Builder
 	for i := range lastParsedLinesStack.lines {
-		//tmpTxt.WriteString(lastParsedLinesStack.lines[i])
 		twoCols := strings.Split(lastParsedLinesStack.lines[i], "    ")
 		tmpTxt.WriteString(twoCols[0])
 		tmpTxt.WriteString("\n")
@@ -460,7 +499,6 @@ func renderOverallHealth() {
 			percent = 100 //overwrite down to 100% is OK
 		}*/
 
-	//percent := avg
 	widgetOverallHealthPercent.TextStyle.Fg = ui.ColorRed
 	if percent > 80 {
 		widgetOverallHealthPercent.TextStyle.Fg = ui.ColorCyan

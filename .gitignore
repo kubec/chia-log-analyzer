@@ -3,3 +3,4 @@
 *.log
 chia-log-analyzer
 builds
+*debug*
