@@ -335,17 +335,23 @@ func readFile(fname string) {
 	stat, err := os.Stat(fname)
 	start := int64(0)
 
-	//is file big enough ?
-	if stat.Size() >= int64(bytesToRead) {
-		start = stat.Size() - int64(bytesToRead)
-	}
+	if stat.Size() > 0 { //not empty file
+		//is file big enough ?
+		if stat.Size() >= int64(bytesToRead) {
+			start = stat.Size() - int64(bytesToRead)
+		} else {
+			buf = make([]byte, stat.Size())
+		}
 
-	log.Info(fmt.Sprintf("Reading file. %d bytes from the position: %d", bytesToRead, start))
+		log.Info(fmt.Sprintf("Reading file. %d bytes from the position: %d", len(buf), start))
 
-	_, err = file.ReadAt(buf, start)
-	if err == nil {
-		lines := strings.Split(string(buf), "\n")
-		parseLines(lines)
+		_, err = file.ReadAt(buf, start)
+		if err == nil {
+			lines := strings.Split(strings.ReplaceAll(string(buf), "\r\n", "\n"), "\n")
+			parseLines(lines)
+		} else {
+			log.Error(fmt.Sprintf("Error when reading bytes from log file: %s", err))
+		}
 	}
 
 	file.Close()
@@ -359,6 +365,7 @@ func parseLines(lines []string) {
 
 	startParsingLines := false
 	for i, s := range lines {
+		log.Info(fmt.Sprintf("Last row: %s", lastRow))
 		if i == 0 { //skip the first row - can be uncomplete due reading by bytes
 			continue
 		}
@@ -377,6 +384,7 @@ func parseLines(lines []string) {
 		}
 
 		lastRow = s
+		log.Info(fmt.Sprintf("Last row2: %s", lastRow))
 
 		if regexPlotsFarming.MatchString(s) {
 			lastParsedLinesStack.push(s)
