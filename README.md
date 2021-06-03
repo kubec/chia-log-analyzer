@@ -28,7 +28,7 @@ Simply realtime chia log analyzer
 
 2) Simply copy exe file to the directory with logs (```C:\Users\<CurrentUserName>\.chia\mainnet\log```) and run ```chia-log-analyzer.go-windows-amd64-signed.exe```
 
-3) Or run executable with path do debug.log: ```hia-log-analyzer.go-windows-amd64-signed.exe --log=:\Users\<CurrentUserName>\.chia\mainnet\log\debug.log```
+3) Or run executable with path do debug.log: ```chia-log-analyzer.go-windows-amd64-signed.exe --log=:\Users\<CurrentUserName>\.chia\mainnet\log\debug.log```
 
 ## debug.log locations
 Automatically trying to load debug.log from these locations:
