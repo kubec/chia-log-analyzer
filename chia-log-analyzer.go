@@ -24,7 +24,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var debuglogFile *string
+var debuglogFile = flag.String("log", "./debug.log", "path to debug.log")
 
 var widgetLastTimestamp *widgets.Paragraph
 var widgetLastPlots *widgets.Paragraph
@@ -68,6 +68,11 @@ type stackStructFloats struct {
 	count  int
 }
 
+type poolInfoStruct struct {
+	name          string
+	partialsCount int
+}
+
 // keep only X last lines in buffer
 func (stack *stackStruct) push(line string) {
 	stack.lines = append(stack.lines, line)
@@ -88,6 +93,10 @@ var lastParsedLinesStack = stackStruct{count: 5}
 var lastFarmStack = stackStructFloats{count: 29}
 var lastFarmingTimesStack = stackStructFloats{count: 113}
 
+var poolInfo = poolInfoStruct{partialsCount: 0}
+
+var GitCommit string //string is written during the build proces
+
 func main() {
 
 	initLogging()
@@ -106,23 +115,23 @@ func main() {
 	ui.Render(widgetLastPlots)
 
 	widgetFoundProofs = widgets.NewParagraph()
-	widgetFoundProofs.SetRect(9, 0, 18, smallWidgetHeight)
-	widgetFoundProofs.Title = "Proofs"
+	widgetFoundProofs.SetRect(9, 0, 46, smallWidgetHeight)
+	widgetFoundProofs.Title = "Pool partials"
 	ui.Render(widgetFoundProofs)
 
 	widgetTotalFarmingPlotsNumber = widgets.NewParagraph()
-	widgetTotalFarmingPlotsNumber.SetRect(18, 0, 37, smallWidgetHeight)
+	widgetTotalFarmingPlotsNumber.SetRect(46, 0, 68, smallWidgetHeight)
 	widgetTotalFarmingPlotsNumber.Title = "Farming attempts"
 	ui.Render(widgetTotalFarmingPlotsNumber)
 
 	widgetLastFarmingTime = widgets.NewParagraph()
-	widgetLastFarmingTime.SetRect(37, 0, 77, smallWidgetHeight)
+	widgetLastFarmingTime.SetRect(68, 0, 109, smallWidgetHeight)
 	widgetLastFarmingTime.Title = "Farming times (last/min/avg/max)"
 	ui.Render(widgetLastFarmingTime)
 
 	widgetOverallHealthPercent = widgets.NewParagraph()
-	widgetOverallHealthPercent.Title = "Overall farming health indicator"
-	widgetOverallHealthPercent.SetRect(77, 0, 119, smallWidgetHeight)
+	widgetOverallHealthPercent.Title = "Health"
+	widgetOverallHealthPercent.SetRect(109, 0, 119, smallWidgetHeight)
 	widgetOverallHealthPercent.TextStyle.Fg = ui.ColorCyan
 	widgetOverallHealthPercent.Text = "?? %"
 
@@ -203,7 +212,6 @@ func initLogging() {
 }
 
 func detectLogFileLocation() {
-	debuglogFile = flag.String("log", "./debug.log", "path to debug.log")
 	flag.Parse()
 	missingLogFile := false
 
@@ -363,9 +371,12 @@ func parseLines(lines []string) {
 	//0 plots were eligible for farming 27274481c3... Found 0 proofs. Time: 0.14447 s. Total 105 plots
 	regexPlotsFarming, _ := regexp.Compile("([0-9]+)\\s+plots\\s+were\\seligible.*Found\\s([0-9])+\\sproofs.*Time:\\s([0-9]+\\.[0-9]+)\\ss\\.\\sTotal\\s([0-9]+)\\splots")
 
+	//Submitting partial for 111111111111111111 to https://xxx.xxx.com
+	regexSubmittingPartials, _ := regexp.Compile("Submitting\\s+partial\\s+for\\s+([0-9a-f]+)\\s+to\\s+(https://.*)")
+
 	startParsingLines := false
 	for i, s := range lines {
-		log.Info(fmt.Sprintf("Last row: %s", lastRow))
+		//log.Info(fmt.Sprintf("Last row: %s", lastRow))
 		if i == 0 { //skip the first row - can be uncomplete due reading by bytes
 			continue
 		}
@@ -384,7 +395,7 @@ func parseLines(lines []string) {
 		}
 
 		lastRow = s
-		log.Info(fmt.Sprintf("Last row2: %s", lastRow))
+		//log.Info(fmt.Sprintf("Last row2: %s", lastRow))
 
 		if regexPlotsFarming.MatchString(s) {
 			lastParsedLinesStack.push(s)
@@ -425,6 +436,13 @@ func parseLines(lines []string) {
 				maxFarmingTime = parsedTime
 			}
 			lastFarmingTimesStack.push(parsedTime)
+		}
+
+		if regexSubmittingPartials.MatchString(s) {
+			match := regexSubmittingPartials.FindStringSubmatch(s)
+			poolInfo.name = match[2]
+			poolInfo.partialsCount++
+			log.Info(poolInfo)
 		}
 	}
 
@@ -470,7 +488,11 @@ func renderLastPlots() {
 }
 
 func renderFoundProofs() {
-	widgetFoundProofs.Text = fmt.Sprintf("%d", foundProofs)
+	if poolInfo.partialsCount > 0 {
+		widgetFoundProofs.Text = fmt.Sprintf("%d (%s)", poolInfo.partialsCount, poolInfo.name)
+	} else {
+		widgetFoundProofs.Text = "No pools detected"
+	}
 	ui.Render(widgetFoundProofs)
 }
 
@@ -514,7 +536,7 @@ func renderOverallHealth() {
 	if percent > 95 {
 		widgetOverallHealthPercent.TextStyle.Fg = ui.ColorGreen
 	}
-	widgetOverallHealthPercent.Text = fmt.Sprintf("%.2f%%  - normal value is about 100%%", percent)
+	widgetOverallHealthPercent.Text = fmt.Sprintf("%.2f%%", percent)
 	ui.Render(widgetOverallHealthPercent)
 }
 
