@@ -116,7 +116,7 @@ func main() {
 
 	widgetFoundProofs = widgets.NewParagraph()
 	widgetFoundProofs.SetRect(9, 0, 46, smallWidgetHeight)
-	widgetFoundProofs.Title = "Pool partials"
+	widgetFoundProofs.Title = "Proofs / Pool partials"
 	ui.Render(widgetFoundProofs)
 
 	widgetTotalFarmingPlotsNumber = widgets.NewParagraph()
@@ -489,9 +489,9 @@ func renderLastPlots() {
 
 func renderFoundProofs() {
 	if poolInfo.partialsCount > 0 {
-		widgetFoundProofs.Text = fmt.Sprintf("%d (%s)", poolInfo.partialsCount, poolInfo.name)
+		widgetFoundProofs.Text = fmt.Sprintf("%d/%d (%s)", foundProofs, poolInfo.partialsCount, poolInfo.name)
 	} else {
-		widgetFoundProofs.Text = "No pools detected"
+		widgetFoundProofs.Text = fmt.Sprintf("%d/%d", foundProofs, 0)
 	}
 	ui.Render(widgetFoundProofs)
 }

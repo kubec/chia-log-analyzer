@@ -7,28 +7,28 @@ Simply realtime chia log analyzer
 ![Screenshot](./docs/screenshot-1.png)
 
 ## Howto run on Linux
-0) Download binary from the [releases](../../releases) assets (chia-log-analyzer.go-linux-amd64
-)
+0) Download binary from the [releases](../../releases) assets (chia-log-analyzer.go-linux-amd64)
+
 1) You must set log level in your chia ```.chia/mainnet/config/config.yaml``` to level: INFO
 
 ![Screenshot](./docs/screenshot-2.png)
 
-2)  Set binary as executable: ```chmod +x chia-log-analyzer.go-linux-amd64```
+2) Set binary as executable: ```chmod +x chia-log-analyzer.go-linux-amd64```
 
-3) Run executable with path do debug.log: ```./chia-log-analyzer.go-linux-amd64 --log=/path/to/debug.log```
+3) Run executable with path to debug.log: ```./chia-log-analyzer.go-linux-amd64 --log=/path/to/debug.log```
 
 4) Or simply copy binary file to the directory with logs and run without parameters ```./chia-log-analyzer.go-linux-amd64```
 
 ## Howto run on Windows
-0) Download binary from the [releases](../../releases) assets (chia-log-analyzer.go-windows-amd64-signed.exe
-)
+0) Download binary from the [releases](../../releases) assets (chia-log-analyzer.go-windows-amd64-signed.exe)
+
 1) You must set log level in your chia ```C:\Users\<CurrentUserName>\.chia\mainnet\config\config.yaml``` to level: INFO
 
 ![Screenshot](./docs/screenshot-2.png)
 
 2) Simply copy exe file to the directory with logs (```C:\Users\<CurrentUserName>\.chia\mainnet\log```) and run ```chia-log-analyzer.go-windows-amd64-signed.exe```
 
-3) Or run executable with path do debug.log: ```chia-log-analyzer.go-windows-amd64-signed.exe --log=:\Users\<CurrentUserName>\.chia\mainnet\log\debug.log```
+3) Or run executable with path to debug.log: ```chia-log-analyzer.go-windows-amd64-signed.exe --log=:\Users\<CurrentUserName>\.chia\mainnet\log\debug.log```
 
 ## debug.log locations
 Automatically trying to load debug.log from these locations:
